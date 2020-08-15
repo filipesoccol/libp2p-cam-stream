@@ -1,14 +1,10 @@
 <template>
   <div class="ipfs-info">
     <img class="ipfs-logo" alt="IPFS logo" src="../assets/logo.svg" />
-    <form v-on:submit.prevent="sendMessage">
-      <div id="messages" class="messages">
-        <p v-for="(m,idx) in messages" :key="idx">{{ m }}</p>
-      </div>
-      <input size="50" v-model="message" placeholder="Write something and press enter."/><br>
-      <input size="50" v-model="peer" placeholder="Fill target Peer for direct message."/>
-      <input type="submit">
-    </form>
+    <!-- <video ref="video" controls autoplay playsinline></video> -->
+    <video ref="video" :src="blob" controls autoplay playsinline></video>
+    <button v-if="!isRecording" @click="startRecord">Start Recording</button>
+    <button v-if="isRecording" @click="stopRecord">Stop Recording</button>
     <h4>{{ status }}</h4>
     <h5>ID: {{ id }}</h5>
   </div>
@@ -26,12 +22,16 @@ export default {
       id: "",
       message: "",
       peer: "",
+      isRecording: false,
+      camera: {},
+      recorder: {},
+      blob: {},
       messages: [],
       libp2p: {}
     };
   },
   mounted: function() {
-    this.startPubsub();
+    //this.startPubsub();
   },
   methods: {
     async startPubsub() {
@@ -72,8 +72,54 @@ export default {
         [this.message],
         stream
       )
-    }
+    },
+    async startRecord () {
+      const camera = await navigator.mediaDevices.getUserMedia({ audio: true, video: true })
+      // this.$refs.video.srcObject = camera;
+      // this.$refs.video.muted = true;
+      // this.$refs.video.volume = 0;
+      // this.$refs.video.play();
 
+      window.recorder = new RecordRTC(camera, {
+          type: 'video',
+          // get intervals based blobs
+          // timeSlice: 5000,
+          // returns blob via callback function
+          // ondataavailable: (blob) => {
+          //   if (this.isRecording){
+          //       this.chunks.push(blob);
+          //       window.URL.createObjectURL(blob)
+          //         // this.cameraBlob = window.URL.createObjectURL(blob);
+          //         //this.$refs.video2.src = window.URL.createObjectURL(blob);
+          //         //this.cameraBlob.addTrack(event.track, window.URL.createObjectURL(blob));
+          //   }
+          // }
+      });
+
+      setInterval(this.restartRecording, 10000);
+      // release camera on stopRecording
+      window.recorder.camera = camera;
+      window.recorder.startRecording();
+      this.isRecording = true;
+    },
+    stopRecord () {
+      this.isRecording = false;
+      // this.$refs.video.muted = false;
+      // this.$refs.video.volume = 1;
+      // this.$refs.video.src = null;
+      // this.$refs.video.srcObject = window.recorder.getBlob();
+      
+      window.recorder.camera.stop();
+      window.recorder.destroy();
+      window.recorder = null;
+    },
+    restartRecording () {
+      window.recorder.stopRecording( () => {
+        const b = window.recorder.getBlob();
+        this.blob = window.URL.createObjectURL(b);
+      })
+      window.recorder.startRecording();
+    }
   }
 }
 </script>
