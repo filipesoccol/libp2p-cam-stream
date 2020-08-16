@@ -20,29 +20,25 @@ export default {
     return {
       status: "Connecting to IPFS...",
       id: "",
-      message: "",
       peer: "",
       isRecording: false,
       camera: {},
       recorder: {},
       blob: {},
-      messages: [],
       libp2p: {}
     };
   },
   mounted: function() {
-    //this.startPubsub();
+    this.startPubsub();
   },
   methods: {
     async startPubsub() {
       this.libp2p = await this.$startLibp2p();
       window.libp2p = this.libp2p
       this.id = this.libp2p.peerId.toB58String();
-      this.libp2p.pubsub.subscribe('news', (msg) => {
-        // console.log(`node1 received: ${msg.data.toString()}`)
-        this.messages.push(msg.data.toString());
-        var elem = document.getElementById('messages');
-        elem.scrollTop = elem.scrollHeight;
+      this.libp2p.pubsub.subscribe('hiveriot', async (msg) => {
+        // console.log(blob);
+        this.blob = window.URL.createObjectURL( new Blob( [ msg.data ] ) );
       })
       this.libp2p.handle('/protocool', ({ stream }) => {
         pipe(
@@ -55,13 +51,12 @@ export default {
         )
       })
     },
-    sendMessage () {
+    sendMessage (m) {
       if (this.peer) {
         console.log('enviando... ', this.peer)
         this.sendDirectMessage(this.peer)
       } else {
-        this.libp2p.pubsub.publish('news', this.message)
-        this.message = ''
+        this.libp2p.pubsub.publish('hiveriot', m)
       }
     },
     async sendDirectMessage (target) {
@@ -82,43 +77,28 @@ export default {
 
       window.recorder = new RecordRTC(camera, {
           type: 'video',
-          // get intervals based blobs
-          // timeSlice: 5000,
-          // returns blob via callback function
-          // ondataavailable: (blob) => {
-          //   if (this.isRecording){
-          //       this.chunks.push(blob);
-          //       window.URL.createObjectURL(blob)
-          //         // this.cameraBlob = window.URL.createObjectURL(blob);
-          //         //this.$refs.video2.src = window.URL.createObjectURL(blob);
-          //         //this.cameraBlob.addTrack(event.track, window.URL.createObjectURL(blob));
-          //   }
-          // }
       });
-
-      setInterval(this.restartRecording, 10000);
       // release camera on stopRecording
       window.recorder.camera = camera;
+      setInterval( () => {
+        this.restartRecording();
+      }, 2000)
       window.recorder.startRecording();
       this.isRecording = true;
     },
     stopRecord () {
       this.isRecording = false;
-      // this.$refs.video.muted = false;
-      // this.$refs.video.volume = 1;
-      // this.$refs.video.src = null;
-      // this.$refs.video.srcObject = window.recorder.getBlob();
-      
       window.recorder.camera.stop();
       window.recorder.destroy();
       window.recorder = null;
     },
     restartRecording () {
-      window.recorder.stopRecording( () => {
+      window.recorder.stopRecording( async (blob) => {
         const b = window.recorder.getBlob();
-        this.blob = window.URL.createObjectURL(b);
+        console.log(b);
+        this.sendMessage(await b.arrayBuffer());
+        window.recorder.startRecording();
       })
-      window.recorder.startRecording();
     }
   }
 }
