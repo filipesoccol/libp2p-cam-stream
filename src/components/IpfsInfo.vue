@@ -82,7 +82,7 @@ export default {
       window.recorder.camera = camera;
       setInterval( () => {
         this.restartRecording();
-      }, 2000)
+      }, 8000)
       window.recorder.startRecording();
       this.isRecording = true;
     },
