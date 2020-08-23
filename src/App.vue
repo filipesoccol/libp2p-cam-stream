@@ -1,16 +1,16 @@
 <template>
   <div id="app">
-    <ipfs-info />
+    <Home />
   </div>
 </template>
 
 <script>
-import IpfsInfo from "./components/IpfsInfo.vue";
+import Home from "./components/Home.vue";
 
 export default {
   name: "app",
   components: {
-    IpfsInfo
+    Home
   }
 };
 </script>

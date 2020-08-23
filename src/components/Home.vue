@@ -1,12 +1,15 @@
 <template>
   <div class="ipfs-info">
     <img class="ipfs-logo" alt="IPFS logo" src="../assets/logo.svg" />
-    <!-- <video ref="video" controls autoplay playsinline></video> -->
-    <video ref="video" :src="blob" controls autoplay playsinline></video>
-    <button v-if="!isRecording" @click="startRecord">Start Recording</button>
-    <button v-if="isRecording" @click="stopRecord">Stop Recording</button>
-    <h4>{{ status }}</h4>
-    <h5>ID: {{ id }}</h5>
+    <div class="peer-id">
+      {{ id }}
+      <button v-if="!isRecording" @click="startRecord">Start Recording</button>
+      <button v-if="isRecording" @click="stopRecord">Stop Recording</button>
+    </div>
+    
+    <div class="videos-container">
+      <video-holder v-for="(p,idx) in Object.keys(peers)" :key="idx" :blobs="peers[p].blobs"></video-holder>
+    </div> 
   </div>
 </template>
 
@@ -14,17 +17,22 @@
 const pipe = require('it-pipe')
 const PeerId = require('peer-id')
 
+import VideoHolder from './VideoHolder.vue';
+
 export default {
-  name: "IpfsInfo",
+  name: "home",
+  components: {
+    videoHolder: VideoHolder
+  },
   data: function() {
     return {
-      status: "Connecting to IPFS...",
       id: "",
       peer: "",
       isRecording: false,
       camera: {},
+      peers: [],
       recorder: {},
-      blob: {},
+      interval: undefined,
       libp2p: {}
     };
   },
@@ -37,8 +45,15 @@ export default {
       window.libp2p = this.libp2p
       this.id = this.libp2p.peerId.toB58String();
       this.libp2p.pubsub.subscribe('hiveriot', async (msg) => {
-        // console.log(blob);
-        this.blob = window.URL.createObjectURL( new Blob( [ msg.data ] ) );
+        let peer = this.peers.find( p => p.id === msg.from);
+        if (!peer) {
+          peer = {
+            id: msg.from,
+            blobs: []
+          }
+          this.peers.push(peer);
+        }
+        peer.blobs.push(window.URL.createObjectURL( new Blob( [ msg.data ] ) ))
       })
       this.libp2p.handle('/protocool', ({ stream }) => {
         pipe(
@@ -73,22 +88,25 @@ export default {
       // this.$refs.video.srcObject = camera;
       // this.$refs.video.muted = true;
       // this.$refs.video.volume = 0;
+      // this.$refs.video.onended = this.nextVideo;
       // this.$refs.video.play();
 
       window.recorder = new RecordRTC(camera, {
           type: 'video',
       });
+
       // release camera on stopRecording
-      window.recorder.camera = camera;
-      setInterval( () => {
+      // window.recorder.camera = camera;
+      this.interval = setInterval( () => {
         this.restartRecording();
-      }, 8000)
+      }, 3000)
       window.recorder.startRecording();
       this.isRecording = true;
     },
     stopRecord () {
       this.isRecording = false;
-      window.recorder.camera.stop();
+      // window.recorder.camera.stop();
+      clearInterval(this.interval);
       window.recorder.destroy();
       window.recorder = null;
     },
@@ -107,7 +125,17 @@ export default {
 <!-- Add "scoped" attribute to limit CSS to this component only -->
 <style scoped>
 .ipfs-logo {
-  height: 10rem;
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  height: 100px;
+}
+.peer-id {
+  position: absolute;
+  top: 10px;
+  left: 110px;
+  height: 100px;
+  font-size: 12px;
 }
 .messages {
   display: flex;
@@ -120,5 +148,52 @@ export default {
 .messages p {
   max-width: 300px;
 }
-
+.videos-container {
+  position: absolute;
+  top: 50px;
+  left: 120px;
+  right: 50px;
+  /* background:gray; */
+  display: flex;
+  flex-flow: row wrap;
+  flex-wrap: wrap;
+  justify-content: space-evenly
+}
+.video-holder {
+  position: relative;
+  width: 320px;
+  height: 240px;
+  border-radius: 16px;
+  margin: 4px;
+  background: white;
+  overflow:hidden;
+  box-shadow: 0px 2px 10px gray;
+}
+.dots {
+  position: absolute;
+  width: 100%;
+  padding-top: 8px;
+  display: flex;
+  flex-flow: row wrap;
+  flex-wrap: wrap;
+  background: transparent;
+}
+.dot {
+    width: auto;
+    flex-grow: 1;
+    height: 8px;
+    min-width: 8px;
+    margin: 4px;
+    border-radius: 4px;
+    background: black;
+}
+.dot.disabled {
+  opacity: 0.3;
+}
+.custom-button {
+  display: none;
+}
+video {
+  width: 100%;
+}
 </style>
