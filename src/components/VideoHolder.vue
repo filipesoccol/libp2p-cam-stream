@@ -1,6 +1,6 @@
 
 <template>
-    <div class="video-holder">
+    <div class="video-holder" v-if="blob">
         <div class="dots">
             <div v-for="(d, idx) in blobs" :key="idx" :class="{dot:true, disabled:idx>current}"></div>
         </div>
@@ -25,13 +25,17 @@ export default {
   data: function() {
     return {
       playing: false,
-      blob: {},
+      blob: undefined,
       current: -1
     };
   },
   watch: {
     blobs(val) {
-      if (!this.playing) this.nextVideo();
+      if (!this.playing) {
+        this.nextVideo();
+        if (this.$refs.video.paused)
+          this.$refs.video.play();
+      }
       this.playing = true;
     }
   },

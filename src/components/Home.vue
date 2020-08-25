@@ -28,10 +28,10 @@ export default {
     return {
       id: "",
       peer: "",
+      camera: undefined,
+      recorder: undefined,
       isRecording: false,
-      camera: {},
       peers: [],
-      recorder: {},
       interval: undefined,
       libp2p: {}
     };
@@ -74,49 +74,35 @@ export default {
         this.libp2p.pubsub.publish('hiveriot', m)
       }
     },
-    async sendDirectMessage (target) {
-      console.log(this.libp2p.peerStore.peers.get(target));
-      let peer = this.libp2p.peerStore.peers.get(target);
-      const { stream } = await this.libp2p.dialProtocol(peer.id, '/protocool')
-      await pipe(
-        [this.message],
-        stream
-      )
-    },
     async startRecord () {
-      const camera = await navigator.mediaDevices.getUserMedia({ audio: true, video: true })
-      // this.$refs.video.srcObject = camera;
-      // this.$refs.video.muted = true;
-      // this.$refs.video.volume = 0;
-      // this.$refs.video.onended = this.nextVideo;
-      // this.$refs.video.play();
+      this.camera = await navigator.mediaDevices.getUserMedia({ audio: true, video: true })
 
-      window.recorder = new RecordRTC(camera, {
-          type: 'video',
-      });
-
+      if (!this.recorder)
+        this.recorder = new MediaRecorder(this.camera);
+      this.recorder.start(10000000000);
       // release camera on stopRecording
       // window.recorder.camera = camera;
       this.interval = setInterval( () => {
-        this.restartRecording();
+        this.restartRecording()
       }, 3000)
-      window.recorder.startRecording();
+      // window.recorder.startRecording();
       this.isRecording = true;
+      this.recorder.ondataavailable = async (e) => {
+        if (this.isRecording)
+          this.recorder.start(10000000000);
+        this.sendMessage(await e.data.arrayBuffer());
+      }
     },
     stopRecord () {
       this.isRecording = false;
-      // window.recorder.camera.stop();
       clearInterval(this.interval);
-      window.recorder.destroy();
-      window.recorder = null;
+      this.recorder.stop();
+      this.camera.getTracks().forEach(function(track) {
+        track.stop();
+      });
     },
     restartRecording () {
-      window.recorder.stopRecording( async (blob) => {
-        const b = window.recorder.getBlob();
-        console.log(b);
-        this.sendMessage(await b.arrayBuffer());
-        window.recorder.startRecording();
-      })
+      this.recorder.stop();
     }
   }
 }
